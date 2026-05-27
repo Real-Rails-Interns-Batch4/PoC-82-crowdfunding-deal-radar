@@ -69,18 +69,25 @@ The app labels this mode as **Synthetic** in the Data Source Status panel.
 
 ```text
 .
-├── app/                  # Next.js App Router page and global styles
-├── backend/              # FastAPI service and ETL-style normalization logic
-├── components/ui/        # Reusable UI primitives
-├── lib/                  # Shared frontend data/types/utilities
-├── types/                # Local TypeScript declarations
-├── package.json          # Frontend scripts and dependencies
-├── requirements.txt      # Backend Python dependencies
-├── start-backend.ps1     # Windows backend launcher
-└── README.md
+|-- app/                  # Next.js App Router page and global styles
+|-- backend/              # FastAPI service and ETL-style normalization logic
+|-- components/ui/        # Reusable UI primitives
+|-- lib/                  # Shared frontend data/types/utilities
+|-- types/                # Local TypeScript declarations
+|-- package.json          # Frontend scripts and dependencies
+|-- requirements.txt      # Backend Python dependencies
+|-- start-backend.ps1     # Windows backend launcher
+`-- README.md
 ```
 
 ## Running Locally
+
+Clone the repository:
+
+```powershell
+git clone https://github.com/Real-Rails-Interns-Batch4/PoC-82-crowdfunding-deal-radar.git
+cd PoC-82-crowdfunding-deal-radar
+```
 
 Install frontend dependencies:
 
@@ -118,15 +125,34 @@ Backend health check:
 http://127.0.0.1:8000/api/health
 ```
 
-## Backend Notes For Windows
+## Backend Notes For Windows And Pandas
 
-On this workstation, Python 3.14 may try to build Pandas from source. The included `start-backend.ps1` launcher uses Python 3.13 and creates the virtual environment under:
+The Pandas issue is **not expected for everyone**. It mainly affects users running very new Python versions, especially Python 3.14, where some pinned data-science packages may not yet have prebuilt wheels.
+
+If Python uses a compatible wheel, installation should work normally. If Python tries to build Pandas from source and fails with a Meson or Visual Studio toolchain error, use Python 3.13.
+
+This project includes a Windows helper script:
+
+```powershell
+.\start-backend.ps1
+```
+
+The script uses Python 3.13 and creates the backend virtual environment under:
 
 ```text
 %LOCALAPPDATA%\dextere-radar\.venv313
 ```
 
-This avoids virtualenv launcher-copy issues that can happen on mapped drives such as `Z:`.
+This also avoids virtualenv launcher-copy issues that can happen on mapped drives such as `Z:`.
+
+Recommended backend setup on Windows:
+
+```powershell
+py -3.13 --version
+.\start-backend.ps1
+```
+
+If `py -3.13 --version` fails, install Python 3.13 from python.org or use another Python version that can install `pandas==2.2.3` from a wheel.
 
 Manual backend setup:
 
