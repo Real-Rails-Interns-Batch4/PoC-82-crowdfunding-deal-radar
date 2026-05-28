@@ -69,14 +69,20 @@ The app labels this mode as **Synthetic** in the Data Source Status panel.
 
 ```text
 .
-|-- app/                  # Next.js App Router page and global styles
+|-- frontend/             # Next.js application
+|   |-- app/              # App Router page and global styles
+|   |-- components/ui/    # Reusable UI primitives
+|   |-- lib/              # Shared frontend data/types/utilities
+|   |-- types/            # Local TypeScript declarations
+|   |-- package.json      # Frontend scripts and dependencies
+|   |-- next.config.mjs
+|   |-- tailwind.config.ts
+|   |-- tsconfig.json
+|   `-- postcss.config.js
 |-- backend/              # FastAPI service and ETL-style normalization logic
-|-- components/ui/        # Reusable UI primitives
-|-- lib/                  # Shared frontend data/types/utilities
-|-- types/                # Local TypeScript declarations
-|-- package.json          # Frontend scripts and dependencies
-|-- requirements.txt      # Backend Python dependencies
-|-- start-backend.ps1     # Windows backend launcher
+|   |-- main.py           # FastAPI entry point
+|   |-- requirements.txt  # Backend Python dependencies
+|   `-- start-backend.ps1 # Windows backend launcher
 `-- README.md
 ```
 
@@ -92,6 +98,7 @@ cd PoC-82-crowdfunding-deal-radar
 Install frontend dependencies:
 
 ```powershell
+cd frontend
 npm install
 ```
 
@@ -104,6 +111,7 @@ npm run dev
 Start the FastAPI backend in a second terminal:
 
 ```powershell
+cd backend
 .\start-backend.ps1
 ```
 
@@ -134,6 +142,7 @@ If Python uses a compatible wheel, installation should work normally. If Python 
 This project includes a Windows helper script:
 
 ```powershell
+cd backend
 .\start-backend.ps1
 ```
 
@@ -149,6 +158,7 @@ Recommended backend setup on Windows:
 
 ```powershell
 py -3.13 --version
+cd backend
 .\start-backend.ps1
 ```
 
@@ -159,7 +169,7 @@ Manual backend setup:
 ```powershell
 py -3.13 -m venv "$env:LOCALAPPDATA\dextere-radar\.venv313"
 & "$env:LOCALAPPDATA\dextere-radar\.venv313\Scripts\activate.ps1"
-pip install -r requirements.txt
+pip install -r backend\requirements.txt
 python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -214,6 +224,7 @@ The current implementation has been checked for:
 Build command:
 
 ```powershell
+cd frontend
 npm run build
 ```
 
