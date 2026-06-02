@@ -18,40 +18,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Deal, sampleDeals } from "@/lib/deals";
+import { Deal, ApiPayload  } from "@/lib/deals";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 
-type ApiPayload = {
-  deals: Deal[];
-  sectors: string[];
-  status: {
-    source: string;
-    mode: "live" | "synthetic";
-    refreshedAt: string;
-    secSearchUrl: string;
-  };
-};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 const ACCENT = "#2DD4BF";
 const SECONDARY = "#A78BFA";
 
-const fallbackPayload: ApiPayload = {
-  deals: sampleDeals,
-  sectors: Array.from(new Set(sampleDeals.map((deal) => deal.sector))).sort(),
-  status: {
-    source: "SEC EDGAR public search with synthetic campaign metrics",
-    mode: "synthetic",
-    refreshedAt: "2026-05-27T00:00:00.000Z",
-    secSearchUrl: "https://www.sec.gov/edgar/search/"
-  }
-};
-
 export default function CrowdfundingDealRadarPage() {
-  const [payload, setPayload] = useState<ApiPayload>(fallbackPayload);
+  const [payload, setPayload] = useState<ApiPayload | null>(null);
+  const [fetchError, setFetchError] = useState(false);
   const [sector, setSector] = useState("All");
   const [portal, setPortal] = useState("All");
-  const [selectedIds, setSelectedIds] = useState<string[]>(["CR-8201", "CR-8205"]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeDealId, setActiveDealId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [signatureOpen, setSignatureOpen] = useState(false);
@@ -62,14 +42,53 @@ export default function CrowdfundingDealRadarPage() {
   useEffect(() => {
     fetch(`${API_BASE}/api/deals`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: ApiPayload) => setPayload(data))
-      .catch(() => setPayload(fallbackPayload));
+      .then((data: ApiPayload) => {
+        setPayload(data);
+        // Pre-select first two deals for comparison once data arrives
+        if (data.deals.length >= 2) {
+          setSelectedIds([data.deals[0].id, data.deals[1].id]);
+        }
+      })
+      .catch(() => setFetchError(true));
   }, []);
 
   useEffect(() => {
-    setRefreshedLabel(new Date(payload.status.refreshedAt).toLocaleString());
-  }, [payload.status.refreshedAt]);
+    if (payload) {
+      setRefreshedLabel(new Date(payload.status.refreshedAt).toLocaleString());
+    }
+  }, [payload?.status.refreshedAt]);
 
+  // Loading state
+  if (!payload) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background text-slate-200">
+        <CinematicBackdrop />
+        <div className="relative z-10 text-center">
+          {fetchError ? (
+            <>
+              <p className="text-lg font-semibold text-red-400">Could not connect to backend</p>
+              <p className="mt-2 text-sm text-slate-400">
+                Make sure the FastAPI server is running at{" "}
+                <code className="rounded bg-white/10 px-1 py-0.5">{API_BASE}</code>
+              </p>
+              <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => { setFetchError(false); window.location.reload(); }}
+              >
+                Retry
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-cyan border-t-transparent" />
+              <p className="text-sm text-slate-400">Loading deals from backend…</p>
+            </>
+          )}
+        </div>
+      </main>
+    );
+  }
   const portals = useMemo(() => Array.from(new Set(payload.deals.map((deal) => deal.portal))).sort(), [payload.deals]);
 
   const filteredDeals = useMemo(
@@ -80,29 +99,28 @@ export default function CrowdfundingDealRadarPage() {
     [payload.deals, portal, sector]
   );
 
+  const comparedDeals = useMemo(
+    () => payload.deals.filter((deal) => selectedIds.includes(deal.id)),
+    [payload.deals, selectedIds]
+  );
+
+  const totalCommitted = useMemo(() => filteredDeals.reduce((sum, deal) => sum + deal.committed, 0), [filteredDeals]);
+  const avgTraction = useMemo(() => d3.mean(filteredDeals, (deal) => deal.tractionScore) ?? 0, [filteredDeals]);
+
   const visibleDeal = filteredDeals.find((deal) => deal.id === activeDealId) ?? filteredDeals[0] ?? payload.deals[0];
   const activeDeal = payload.deals.find((deal) => deal.id === activeDealId) ?? visibleDeal;
-  const comparedDeals = payload.deals.filter((deal) => selectedIds.includes(deal.id));
-  const totalCommitted = filteredDeals.reduce((sum, deal) => sum + deal.committed, 0);
-  const avgTraction = d3.mean(filteredDeals, (deal) => deal.tractionScore) ?? 0;
 
-  const xScale = useMemo(
-    () =>
-      d3
-        .scaleLinear()
-        .domain(d3.extent(payload.deals, (deal) => deal.visibilityScore) as [number, number])
-        .range([14, 86]),
-    [payload.deals]
-  );
+  const xScale = useMemo(() => {
+    const extent = d3.extent(payload.deals, (deal) => deal.visibilityScore);
+    const domain = (extent[0] === undefined ? [0, 100] : extent) as [number, number];
+    return d3.scaleLinear().domain(domain).range([14, 86]);
+  }, [payload.deals]);
 
-  const yScale = useMemo(
-    () =>
-      d3
-        .scaleLinear()
-        .domain(d3.extent(payload.deals, (deal) => deal.tractionScore) as [number, number])
-        .range([78, 22]),
-    [payload.deals]
-  );
+  const yScale = useMemo(() => {
+    const extent = d3.extent(payload.deals, (deal) => deal.tractionScore);
+    const domain = (extent[0] === undefined ? [0, 100] : extent) as [number, number];
+    return d3.scaleLinear().domain(domain).range([78, 22]);
+  }, [payload.deals]);
 
   const columns = useMemo<ColumnDef<Deal>[]>(
     () => [
@@ -173,13 +191,13 @@ export default function CrowdfundingDealRadarPage() {
 
   useEffect(() => {
     if (!panelOpen) return;
-    let mounted = true;
+    let chartInstance: any = null;
     async function renderChart() {
       if (!chartRef.current) return;
       const echarts = await import("echarts");
-      if (!mounted || !chartRef.current) return;
-      const chart = echarts.init(chartRef.current, "dark", { renderer: "canvas" });
-      chart.setOption({
+      if (!chartRef.current) return;
+      chartInstance = echarts.init(chartRef.current, "dark", { renderer: "canvas" });
+      chartInstance.setOption({
         backgroundColor: "transparent",
         color: [ACCENT, SECONDARY],
         tooltip: {
@@ -219,20 +237,12 @@ export default function CrowdfundingDealRadarPage() {
           }
         ]
       });
-      const resize = () => chart.resize();
+      const resize = () => chartInstance?.resize();
       window.addEventListener("resize", resize);
-      return () => {
-        window.removeEventListener("resize", resize);
-        chart.dispose();
-      };
     }
-    let cleanup: undefined | (() => void);
-    renderChart().then((dispose) => {
-      cleanup = dispose;
-    });
+    renderChart();
     return () => {
-      mounted = false;
-      cleanup?.();
+      chartInstance?.dispose();
     };
   }, [filteredDeals, panelOpen]);
 
@@ -254,14 +264,15 @@ export default function CrowdfundingDealRadarPage() {
             type: "scatter",
             textposition: "top center",
             marker: {
-              color: comparedDeals.map((deal) => deal.tractionScore),
-              colorscale: [
-                [0, SECONDARY],
-                [1, ACCENT]
-              ],
-              size: comparedDeals.map((deal) => Math.max(14, deal.committed / 70000)),
-              line: { color: ACCENT, width: 1 }
+            color: comparedDeals.map((deal) => deal.tractionScore),
+            colorscale: [
+              [0, SECONDARY],
+              [1, ACCENT]
+            ],
+            size: comparedDeals.map((deal) => Math.max(14, deal.committed / 70000)),
+            line: { color: ACCENT, width: 1 }
             }
+
           }
         ],
         {
@@ -395,164 +406,166 @@ export default function CrowdfundingDealRadarPage() {
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#080712]/90 p-4 backdrop-blur">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-cyan">Intelligence Panel</p>
-            <h3 className="mt-1 text-lg font-semibold text-white">{activeDeal.issuer}</h3>
+            <h3 className="mt-1 text-lg font-semibold text-white">{activeDeal?.issuer ?? "No Deal Selected"}</h3>
           </div>
           <Button aria-label="Close Intelligence Panel" size="icon" variant="ghost" onClick={() => setPanelOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="space-y-4 p-4">
-          <Card className="shadow-cyan">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-cyan" />
-                Deal Terms
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-xs uppercase text-slate-500">Filtered committed capital</p>
-                <p className="mt-1 text-3xl font-semibold text-white">{formatCurrency(totalCommitted)}</p>
-                <p className="mt-1 text-sm text-slate-400">Average traction score: {avgTraction.toFixed(1)}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Metric label="Active issuer" value={activeDeal.issuer} />
-                <Metric label="Terms" value={activeDeal.securityType} />
-                <Metric label="Target" value={formatCurrency(activeDeal.targetRaise)} />
-                <Metric label="Max" value={formatCurrency(activeDeal.maxRaise)} />
-              </div>
-              <Button asChild variant="outline" className="w-full">
-                <a href={activeDeal.secSearchUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open SEC EDGAR
-                </a>
-              </Button>
-              <Button asChild className="w-full" title="Download current filtered dataset">
-                <a href={downloadHref}>
-                  <Download className="h-4 w-4" />
-                  Download Sample Data
-                </a>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-cyan" />
-                Traction Chart
-              </CardTitle>
-              <Badge>{filteredDeals.length} active deals</Badge>
-            </CardHeader>
-            <CardContent>
-              <div ref={chartRef} className="h-[280px] w-full" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GitCompare className="h-4 w-4 text-indigo" />
-                Compare Deals
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div ref={compareChartRef} className="h-[190px] w-full" />
-              {comparedDeals.map((deal) => (
-                <div key={deal.id} className="rounded-md border border-border bg-background/55 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-white">{deal.issuer}</p>
-                      <p className="text-xs text-slate-400">
-                        {deal.securityType} | {deal.portal}
-                      </p>
-                    </div>
-                    <Badge className="border-indigo/40 bg-indigo/10 text-indigo">{deal.tractionScore}</Badge>
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <Metric label="Committed" value={formatCurrency(deal.committed)} />
-                    <Metric label="Valuation" value={formatCurrency(deal.valuationCap)} />
-                    <Metric label="Growth" value={formatPercent(deal.revenueGrowth)} />
-                  </div>
+        {activeDeal && (
+          <div className="space-y-4 p-4">
+            <Card className="shadow-cyan">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-cyan" />
+                  Deal Terms
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-xs uppercase text-slate-500">Filtered committed capital</p>
+                  <p className="mt-1 text-3xl font-semibold text-white">{formatCurrency(totalCommitted)}</p>
+                  <p className="mt-1 text-sm text-slate-400">Average traction score: {avgTraction.toFixed(1)}</p>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+                <div className="grid grid-cols-2 gap-2">
+                  <Metric label="Active issuer" value={activeDeal.issuer} />
+                  <Metric label="Terms" value={activeDeal.securityType} />
+                  <Metric label="Target" value={formatCurrency(activeDeal.targetRaise)} />
+                  <Metric label="Max" value={formatCurrency(activeDeal.maxRaise)} />
+                </div>
+                <Button asChild variant="outline" className="w-full">
+                  <a href={activeDeal.secSearchUrl} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Open SEC EDGAR
+                  </a>
+                </Button>
+                <Button asChild className="w-full" title="Download current filtered dataset">
+                  <a href={downloadHref}>
+                    <Download className="h-4 w-4" />
+                    Download Sample Data
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Deal Table</CardTitle>
-              <span
-                className="flex items-center gap-1 text-xs text-slate-400"
-                title="SEC EDGAR source link is retained for public filing lookup."
-              >
-                <Info className="h-3.5 w-3.5 text-cyan" />
-                SEC EDGAR linked
-              </span>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead className="bg-white/[0.02] text-xs uppercase text-slate-400">
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th key={header.id} className="px-4 py-3 text-left font-medium">
-                          <span className="inline-flex items-center gap-1">
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {header.column.id !== "compare" && <ArrowUpDown className="h-3 w-3" />}
-                          </span>
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className={`border-t border-border transition hover:bg-cyan/5 ${row.original.id === activeDeal.id ? "bg-cyan/5" : ""}`}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="px-4 py-3 text-slate-300">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-cyan" />
+                  Traction Chart
+                </CardTitle>
+                <Badge>{filteredDeals.length} active deals</Badge>
+              </CardHeader>
+              <CardContent>
+                <div ref={chartRef} className="h-[280px] w-full" />
+              </CardContent>
+            </Card>
 
-          <NarrativeCard title="Why This Matters">
-            Makes alternative capital formation tangible to the public. The dashboard translates Form C visibility,
-            terms, committed capital, and synthetic traction signals into a compact view of which issuers are gaining
-            attention and how efficiently campaigns move from disclosure to investor demand.
-          </NarrativeCard>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GitCompare className="h-4 w-4 text-indigo" />
+                  Compare Deals
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div ref={compareChartRef} className="h-[190px] w-full" />
+                {comparedDeals.map((deal) => (
+                  <div key={deal.id} className="rounded-md border border-border bg-background/55 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-white">{deal.issuer}</p>
+                        <p className="text-xs text-slate-400">
+                          {deal.securityType} | {deal.portal}
+                        </p>
+                      </div>
+                      <Badge className="border-indigo/40 bg-indigo/10 text-indigo">{deal.tractionScore}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                      <Metric label="Committed" value={formatCurrency(deal.committed)} />
+                      <Metric label="Valuation" value={formatCurrency(deal.valuationCap)} />
+                      <Metric label="Growth" value={formatPercent(deal.revenueGrowth)} />
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
-          <NarrativeCard title="Who Controls the Rail">
-            Regulation crowdfunding is shaped by issuers, SEC disclosure rules, registered funding portals or
-            broker-dealers, investor limits, and platform distribution. Deal visibility, terms, filings, and traction
-            signals influence which companies can raise and which investors can evaluate opportunities.
-          </NarrativeCard>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Data Source Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Mode</span>
-                <Badge className={payload.status.mode === "live" ? "" : "border-indigo/40 bg-indigo/10 text-indigo"}>
-                  {payload.status.mode.toUpperCase()}
-                </Badge>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Deal Table</CardTitle>
+                <span
+                  className="flex items-center gap-1 text-xs text-slate-400"
+                  title="SEC EDGAR source link is retained for public filing lookup."
+                >
+                  <Info className="h-3.5 w-3.5 text-cyan" />
+                  SEC EDGAR linked
+                </span>
+              </CardHeader>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead className="bg-white/[0.02] text-xs uppercase text-slate-400">
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <th key={header.id} className="px-4 py-3 text-left font-medium">
+                            <span className="inline-flex items-center gap-1">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                              {header.column.id !== "compare" && <ArrowUpDown className="h-3 w-3" />}
+                            </span>
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody>
+                    {table.getRowModel().rows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className={`border-t border-border transition hover:bg-cyan/5 ${activeDeal && row.original.id === activeDeal.id ? "bg-cyan/5" : ""}`}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="px-4 py-3 text-slate-300">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-slate-300">{payload.status.source}</p>
-              <p className="text-xs text-slate-500">Refreshed: {refreshedLabel}</p>
-            </CardContent>
-          </Card>
-        </div>
+            </Card>
+
+            <NarrativeCard title="Why This Matters">
+              Makes alternative capital formation tangible to the public. The dashboard translates Form C visibility,
+              terms, committed capital, and synthetic traction signals into a compact view of which issuers are gaining
+              attention and how efficiently campaigns move from disclosure to investor demand.
+            </NarrativeCard>
+
+            <NarrativeCard title="Who Controls the Rail">
+              Regulation crowdfunding is shaped by issuers, SEC disclosure rules, registered funding portals or
+              broker-dealers, investor limits, and platform distribution. Deal visibility, terms, filings, and traction
+              signals influence which companies can raise and which investors can evaluate opportunities.
+            </NarrativeCard>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Data Source Status</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Mode</span>
+                  <Badge className={payload.status.mode === "live" ? "" : "border-indigo/40 bg-indigo/10 text-indigo"}>
+                    {payload.status.mode.toUpperCase()}
+                  </Badge>
+                </div>
+                <p className="text-slate-300">{payload.status.source}</p>
+                <p className="text-xs text-slate-500">Refreshed: {refreshedLabel}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </aside>
 
       {signatureOpen && (

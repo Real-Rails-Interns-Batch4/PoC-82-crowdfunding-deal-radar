@@ -83,6 +83,9 @@ The app labels this mode as **Synthetic** in the Data Source Status panel.
 |   |-- main.py           # FastAPI entry point
 |   |-- requirements.txt  # Backend Python dependencies
 |   `-- start-backend.ps1 # Windows backend launcher
+|-- mock-data/            # Synthetic dataset for testing
+|   |-- crowdfunding_deals_synthetic.json  # Primary data source
+|   `-- crowdfunding_deals_synthetic.csv   # CSV reference
 `-- README.md
 ```
 
@@ -113,6 +116,8 @@ Start the FastAPI backend in a second terminal:
 ```powershell
 .\backend\start-backend.ps1
 ```
+
+The backend now loads its dataset from `mock-data/crowdfunding_deals_synthetic.json`, ensuring consistency between the UI and the data model.
 
 Open the frontend:
 
