@@ -39,6 +39,17 @@ export default function CrowdfundingDealRadarPage() {
   const chartRef = useRef<HTMLDivElement>(null);
   const compareChartRef = useRef<HTMLDivElement>(null);
 
+  const openDeal = (id: string) => {
+    setActiveDealId(id);
+    setPanelOpen(true);
+  };
+
+  const toggleCompare = (id: string) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((dealId) => dealId !== id) : [...current.slice(-2), id]
+    );
+  };
+
   useEffect(() => {
     fetch(`${API_BASE}/api/deals`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
@@ -58,69 +69,49 @@ export default function CrowdfundingDealRadarPage() {
     }
   }, [payload?.status.refreshedAt]);
 
-  // Loading state
-  if (!payload) {
-    return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background text-slate-200">
-        <CinematicBackdrop />
-        <div className="relative z-10 text-center">
-          {fetchError ? (
-            <>
-              <p className="text-lg font-semibold text-red-400">Could not connect to backend</p>
-              <p className="mt-2 text-sm text-slate-400">
-                Make sure the FastAPI server is running at{" "}
-                <code className="rounded bg-white/10 px-1 py-0.5">{API_BASE}</code>
-              </p>
-              <Button
-                className="mt-4"
-                variant="outline"
-                onClick={() => { setFetchError(false); window.location.reload(); }}
-              >
-                Retry
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-cyan border-t-transparent" />
-              <p className="text-sm text-slate-400">Loading deals from backend…</p>
-            </>
-          )}
-        </div>
-      </main>
+  const portals = useMemo(() => {
+    if (!payload) return [];
+    return Array.from(new Set(payload.deals.map((deal) => deal.portal))).sort();
+  }, [payload?.deals]);
+
+  const filteredDeals = useMemo(() => {
+    if (!payload) return [];
+    return payload.deals.filter(
+      (deal) => (sector === "All" || deal.sector === sector) && (portal === "All" || deal.portal === portal)
     );
-  }
-  const portals = useMemo(() => Array.from(new Set(payload.deals.map((deal) => deal.portal))).sort(), [payload.deals]);
+  }, [payload?.deals, portal, sector]);
 
-  const filteredDeals = useMemo(
-    () =>
-      payload.deals.filter(
-        (deal) => (sector === "All" || deal.sector === sector) && (portal === "All" || deal.portal === portal)
-      ),
-    [payload.deals, portal, sector]
-  );
-
-  const comparedDeals = useMemo(
-    () => payload.deals.filter((deal) => selectedIds.includes(deal.id)),
-    [payload.deals, selectedIds]
-  );
+  const comparedDeals = useMemo(() => {
+    if (!payload) return [];
+    return payload.deals.filter((deal) => selectedIds.includes(deal.id));
+  }, [payload?.deals, selectedIds]);
 
   const totalCommitted = useMemo(() => filteredDeals.reduce((sum, deal) => sum + deal.committed, 0), [filteredDeals]);
   const avgTraction = useMemo(() => d3.mean(filteredDeals, (deal) => deal.tractionScore) ?? 0, [filteredDeals]);
 
-  const visibleDeal = filteredDeals.find((deal) => deal.id === activeDealId) ?? filteredDeals[0] ?? payload.deals[0];
-  const activeDeal = payload.deals.find((deal) => deal.id === activeDealId) ?? visibleDeal;
+  const visibleDeal = useMemo(() => {
+    if (!payload) return null;
+    return filteredDeals.find((deal) => deal.id === activeDealId) ?? filteredDeals[0] ?? payload.deals[0];
+  }, [payload, filteredDeals, activeDealId]);
+
+  const activeDeal = useMemo(() => {
+    if (!payload) return null;
+    return payload.deals.find((deal) => deal.id === activeDealId) ?? visibleDeal;
+  }, [payload, activeDealId, visibleDeal]);
 
   const xScale = useMemo(() => {
+    if (!payload) return d3.scaleLinear().domain([0, 100]).range([14, 86]);
     const extent = d3.extent(payload.deals, (deal) => deal.visibilityScore);
     const domain = (extent[0] === undefined ? [0, 100] : extent) as [number, number];
     return d3.scaleLinear().domain(domain).range([14, 86]);
-  }, [payload.deals]);
+  }, [payload?.deals]);
 
   const yScale = useMemo(() => {
+    if (!payload) return d3.scaleLinear().domain([0, 100]).range([78, 22]);
     const extent = d3.extent(payload.deals, (deal) => deal.tractionScore);
     const domain = (extent[0] === undefined ? [0, 100] : extent) as [number, number];
     return d3.scaleLinear().domain(domain).range([78, 22]);
-  }, [payload.deals]);
+  }, [payload?.deals]);
 
   const columns = useMemo<ColumnDef<Deal>[]>(
     () => [
@@ -177,17 +168,6 @@ export default function CrowdfundingDealRadarPage() {
   );
 
   const table = useReactTable({ data: filteredDeals, columns, getCoreRowModel: getCoreRowModel() });
-
-  function openDeal(id: string) {
-    setActiveDealId(id);
-    setPanelOpen(true);
-  }
-
-  function toggleCompare(id: string) {
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((dealId) => dealId !== id) : [...current.slice(-2), id]
-    );
-  }
 
   useEffect(() => {
     if (!panelOpen) return;
@@ -264,15 +244,14 @@ export default function CrowdfundingDealRadarPage() {
             type: "scatter",
             textposition: "top center",
             marker: {
-            color: comparedDeals.map((deal) => deal.tractionScore),
-            colorscale: [
-              [0, SECONDARY],
-              [1, ACCENT]
-            ],
-            size: comparedDeals.map((deal) => Math.max(14, deal.committed / 70000)),
-            line: { color: ACCENT, width: 1 }
+              color: comparedDeals.map((deal) => deal.tractionScore),
+              colorscale: [
+                [0, SECONDARY],
+                [1, ACCENT]
+              ],
+              size: comparedDeals.map((deal) => Math.max(14, deal.committed / 70000)),
+              line: { color: ACCENT, width: 1 }
             }
-
           }
         ],
         {
@@ -296,6 +275,39 @@ export default function CrowdfundingDealRadarPage() {
       }
     };
   }, [comparedDeals, panelOpen]);
+
+  // Loading state
+  if (!payload) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background text-slate-200">
+        <CinematicBackdrop />
+        <div className="relative z-10 text-center">
+          {fetchError ? (
+            <>
+              <p className="text-lg font-semibold text-red-400">Could not connect to backend</p>
+              <p className="mt-2 text-sm text-slate-400">
+                Make sure the FastAPI server is running at{" "}
+                <code className="rounded bg-white/10 px-1 py-0.5">{API_BASE}</code>
+              </p>
+              <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => { setFetchError(false); window.location.reload(); }}
+              >
+                Retry
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-cyan border-t-transparent" />
+              <p className="text-sm text-slate-400">Loading deals from backend…</p>
+            </>
+          )}
+        </div>
+      </main>
+    );
+  }
+
 
   const downloadHref = `${API_BASE}/api/deals/download?sector=${encodeURIComponent(sector)}&portal=${encodeURIComponent(portal)}`;
 
