@@ -111,8 +111,7 @@ npm run dev
 Start the FastAPI backend in a second terminal:
 
 ```powershell
-cd backend
-.\start-backend.ps1
+.\backend\start-backend.ps1
 ```
 
 Open the frontend:
@@ -132,6 +131,94 @@ Backend health check:
 ```text
 http://127.0.0.1:8000/api/health
 ```
+
+## Running With Docker
+
+This repo includes a production-style multi-stage `Dockerfile` and a `docker-compose.yml` file for running the full stack with one command.
+
+### Prerequisite
+
+Install and start Docker Desktop before running Docker commands:
+
+```powershell
+docker --version
+docker compose version
+```
+
+If PowerShell says `docker` is not recognized, Docker Desktop is not installed, not running, or not available on PATH.
+
+### Environment File
+
+Create a local `.env` file from the example:
+
+```powershell
+copy .env.example .env
+```
+
+Edit `.env` only if you need to add keys or change ports:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_MAPBOX_TOKEN=
+MAPBOX_TOKEN=
+DATA_API_KEY=
+SEC_USER_AGENT=Crowdfunding Deal Radar PoC
+FRONTEND_PORT=3000
+BACKEND_PORT=8000
+```
+
+The real `.env` file is ignored by Git. Commit `.env.example`, not `.env`.
+
+### Start The Full Stack
+
+From the repository root:
+
+```powershell
+docker compose up --build
+```
+
+Open the frontend:
+
+```text
+http://localhost:3000
+```
+
+Check the backend:
+
+```text
+http://localhost:8000/api/health
+```
+
+Stop the stack:
+
+```powershell
+docker compose down
+```
+
+### Docker Architecture
+
+The `Dockerfile` contains two production targets:
+
+- `frontend-runner`: installs dependencies, builds the Next.js standalone output, and serves the frontend with Node.
+- `backend-runner`: installs FastAPI/Pandas/DuckDB dependencies and serves the API with Uvicorn.
+
+The compose file builds both services from the same `Dockerfile` using different targets.
+
+Important: `NEXT_PUBLIC_*` variables are baked into the Next.js frontend at build time. If you change `NEXT_PUBLIC_API_BASE_URL` or `NEXT_PUBLIC_MAPBOX_TOKEN`, rebuild the frontend image:
+
+```powershell
+docker compose build frontend
+docker compose up
+```
+
+### Render Deployment Note
+
+If Azure is not available, this project can be adapted to Render. The recommended Render setup is two Web Services:
+
+- `backend`: FastAPI service from `backend/`, exposing port `8000`.
+- `frontend`: Next.js service from `frontend/`, with `NEXT_PUBLIC_API_BASE_URL` pointing to the Render backend URL.
+
+For Render environment variables, use the same names from `.env.example`.
 
 ## Backend Notes For Windows And Pandas
 
@@ -158,8 +245,7 @@ Recommended backend setup on Windows:
 
 ```powershell
 py -3.13 --version
-cd backend
-.\start-backend.ps1
+.\backend\start-backend.ps1
 ```
 
 If `py -3.13 --version` fails, install Python 3.13 from python.org or use another Python version that can install `pandas==2.2.3` from a wheel.

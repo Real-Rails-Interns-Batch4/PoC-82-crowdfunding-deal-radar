@@ -7,17 +7,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#030712",
-        surface: "#0B1117",
-        cyan: "#38BDF8",
-        indigo: "#818CF8",
-        border: "#1F2937"
+        background: "#080712",
+        surface: "#0E111B",
+        cyan: "#2DD4BF",
+        indigo: "#A78BFA",
+        border: "#243042"
       },
       fontFamily: {
         sans: ["Inter", "Geist", "ui-sans-serif", "system-ui", "sans-serif"]
       },
       boxShadow: {
-        cyan: "0 0 0 0.5px rgba(56,189,248,0.75), 0 0 24px rgba(56,189,248,0.12)"
+        cyan: "0 0 0 0.5px rgba(45,212,191,0.75), 0 0 24px rgba(45,212,191,0.14)"
       }
     }
   },

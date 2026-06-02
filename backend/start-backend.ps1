@@ -6,6 +6,8 @@ if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
 
 $VenvRoot = Join-Path $env:LOCALAPPDATA "dextere-radar\.venv313"
 $PythonExe = Join-Path $VenvRoot "Scripts\python.exe"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = Split-Path -Parent $ScriptDir
 $Port = 8000
 $HealthUrl = "http://127.0.0.1:$Port/api/health"
 
@@ -29,5 +31,11 @@ if (-not (Test-Path $PythonExe)) {
   py -3.13 -m venv $VenvRoot
 }
 
-& $PythonExe -m pip install -r requirements.txt
-& $PythonExe -m uvicorn backend.main:app --reload --host 0.0.0.0 --port $Port
+Push-Location $RepoRoot
+try {
+  & $PythonExe -m pip install -r backend\requirements.txt
+  & $PythonExe -m uvicorn backend.main:app --reload --host 0.0.0.0 --port $Port
+}
+finally {
+  Pop-Location
+}

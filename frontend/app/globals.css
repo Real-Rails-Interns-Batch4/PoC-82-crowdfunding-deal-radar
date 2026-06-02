@@ -13,7 +13,7 @@
 html,
 body {
   min-height: 100%;
-  background: #030712;
+  background: #080712;
 }
 
 body {
@@ -40,5 +40,5 @@ select {
 }
 
 ::-webkit-scrollbar-track {
-  background: #030712;
+  background: #080712;
 }

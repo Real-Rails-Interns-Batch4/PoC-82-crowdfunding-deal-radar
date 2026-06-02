@@ -1,0 +1,14 @@
+.git
+.next
+.venv
+.venv313
+node_modules
+frontend/.next
+frontend/node_modules
+frontend/.env.local
+backend/__pycache__
+**/__pycache__
+**/*.pyc
+.env
+repomix-output.xml
+npm-debug.log*

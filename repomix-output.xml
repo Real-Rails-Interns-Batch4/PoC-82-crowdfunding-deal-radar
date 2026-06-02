@@ -1,0 +1,1779 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+backend/__init__.py
+backend/main.py
+backend/requirements.txt
+backend/start-backend.ps1
+frontend/app/globals.css
+frontend/app/layout.tsx
+frontend/app/page.tsx
+frontend/components/ui/badge.tsx
+frontend/components/ui/button.tsx
+frontend/components/ui/card.tsx
+frontend/lib/deals.ts
+frontend/lib/utils.ts
+frontend/next-env.d.ts
+frontend/next.config.mjs
+frontend/package.json
+frontend/postcss.config.js
+frontend/tailwind.config.ts
+frontend/tsconfig.json
+frontend/types/plotly.js-dist-min.d.ts
+README.md
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".gitignore">
+node_modules
+.next
+.venv
+.venv313
+__pycache__
+*.pyc
+.env.local
+</file>
+
+<file path="backend/__init__.py">
+"""DEXTERE Crowdfunding Deal Radar API."""
+</file>
+
+<file path="backend/main.py">
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from io import StringIO
+from typing import Literal
+
+import duckdb
+import pandas as pd
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+
+SEC_SEARCH_URL = "https://www.sec.gov/edgar/search/"
+
+
+class SourceStatus(BaseModel):
+    source: str
+    mode: Literal["live", "synthetic"]
+    refreshedAt: str
+    secSearchUrl: str
+
+
+class DealPayload(BaseModel):
+    deals: list[dict]
+    sectors: list[str]
+    status: SourceStatus
+
+
+app = FastAPI(title="DEXTERE Crowdfunding Deal Radar", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):30\d{2}$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+RAW_DEALS = [
+    {
+        "id": "CR-8201",
+        "issuer": "Nautilus Grid Analytics",
+        "sector": "Climate Tech",
+        "portal": "Republic",
+        "formType": "Form C",
+        "filingDate": "2026-04-18",
+        "state": "CA",
+        "targetRaise": 125000,
+        "maxRaise": 1240000,
+        "committed": 842000,
+        "valuationCap": 12000000,
+        "securityType": "SAFE",
+        "investorCount": 1186,
+        "daysRemaining": 17,
+        "monthlyRevenue": 146000,
+        "revenueGrowth": 38.4,
+        "secSearchUrl": SEC_SEARCH_URL,
+    },
+    {
+        "id": "CR-8202",
+        "issuer": "LedgerLane Health",
+        "sector": "Health Tech",
+        "portal": "Wefunder",
+        "formType": "Form C/A",
+        "filingDate": "2026-03-29",
+        "state": "NY",
+        "targetRaise": 75000,
+        "maxRaise": 980000,
+        "committed": 391000,
+        "valuationCap": 9500000,
+        "securityType": "Crowd Note",
+        "investorCount": 642,
+        "daysRemaining": 24,
+        "monthlyRevenue": 89000,
+        "revenueGrowth": 22.7,
+        "secSearchUrl": SEC_SEARCH_URL,
+    },
+    {
+        "id": "CR-8203",
+        "issuer": "Aurora Pantry Systems",
+        "sector": "Consumer",
+        "portal": "StartEngine",
+        "formType": "Form C",
+        "filingDate": "2026-02-14",
+        "state": "TX",
+        "targetRaise": 100000,
+        "maxRaise": 1500000,
+        "committed": 1190000,
+        "valuationCap": 18000000,
+        "securityType": "Common Equity",
+        "investorCount": 2211,
+        "daysRemaining": 9,
+        "monthlyRevenue": 238000,
+        "revenueGrowth": 31.2,
+        "secSearchUrl": SEC_SEARCH_URL,
+    },
+    {
+        "id": "CR-8204",
+        "issuer": "CipherForge Compliance",
+        "sector": "Fintech",
+        "portal": "Netcapital",
+        "formType": "Form C",
+        "filingDate": "2026-05-06",
+        "state": "MA",
+        "targetRaise": 50000,
+        "maxRaise": 750000,
+        "committed": 214000,
+        "valuationCap": 7000000,
+        "securityType": "SAFE",
+        "investorCount": 336,
+        "daysRemaining": 41,
+        "monthlyRevenue": 62000,
+        "revenueGrowth": 44.9,
+        "secSearchUrl": SEC_SEARCH_URL,
+    },
+    {
+        "id": "CR-8205",
+        "issuer": "Meadow Robotics",
+        "sector": "Industrial AI",
+        "portal": "Republic",
+        "formType": "Form C/A",
+        "filingDate": "2026-01-27",
+        "state": "PA",
+        "targetRaise": 150000,
+        "maxRaise": 2000000,
+        "committed": 1574000,
+        "valuationCap": 24000000,
+        "securityType": "Preferred Equity",
+        "investorCount": 1745,
+        "daysRemaining": 13,
+        "monthlyRevenue": 304000,
+        "revenueGrowth": 29.6,
+        "secSearchUrl": SEC_SEARCH_URL,
+    },
+    {
+        "id": "CR-8206",
+        "issuer": "Northstar Learning Lab",
+        "sector": "Education",
+        "portal": "Wefunder",
+        "formType": "Form C",
+        "filingDate": "2026-04-02",
+        "state": "IL",
+        "targetRaise": 25000,
+        "maxRaise": 500000,
+        "committed": 184000,
+        "valuationCap": 5400000,
+        "securityType": "Revenue Share",
+        "investorCount": 487,
+        "daysRemaining": 32,
+        "monthlyRevenue": 41000,
+        "revenueGrowth": 18.3,
+        "secSearchUrl": SEC_SEARCH_URL,
+    },
+]
+
+
+def normalized_deals() -> pd.DataFrame:
+    frame = pd.DataFrame(RAW_DEALS)
+    frame["commitmentRatio"] = frame["committed"] / frame["maxRaise"]
+    frame["tractionScore"] = (
+        (frame["commitmentRatio"].clip(upper=1) * 42)
+        + (frame["revenueGrowth"].clip(upper=50) / 50 * 28)
+        + (frame["investorCount"].clip(upper=2200) / 2200 * 30)
+    ).round()
+    frame["visibilityScore"] = (
+        (frame["investorCount"].clip(upper=2200) / 2200 * 55)
+        + (frame["commitmentRatio"].clip(upper=1) * 45)
+    ).round()
+    frame["termsScore"] = (
+        100
+        - (frame["valuationCap"] / frame["monthlyRevenue"].replace(0, 1)).clip(upper=260) / 260 * 32
+        + (frame["targetRaise"] / frame["maxRaise"] * 18)
+    ).clip(lower=0, upper=100).round()
+    frame["railControlScore"] = (
+        40
+        + frame["portal"].map({"Republic": 21, "Wefunder": 18, "StartEngine": 24, "Netcapital": 16}).fillna(15)
+        + frame["formType"].map({"Form C/A": 10, "Form C": 6}).fillna(5)
+        + (frame["daysRemaining"].clip(upper=45) / 45 * 18)
+    ).clip(upper=100).round()
+    score_columns = ["tractionScore", "visibilityScore", "termsScore", "railControlScore"]
+    frame[score_columns] = frame[score_columns].astype(int)
+    return frame
+
+
+def filter_deals(frame: pd.DataFrame, sector: str | None, portal: str | None) -> pd.DataFrame:
+    conn = duckdb.connect(database=":memory:")
+    conn.register("deals", frame)
+    clauses: list[str] = []
+    params: list[str] = []
+    if sector and sector != "All":
+        clauses.append("sector = ?")
+        params.append(sector)
+    if portal and portal != "All":
+        clauses.append("portal = ?")
+        params.append(portal)
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    return conn.execute(f"SELECT * FROM deals {where} ORDER BY committed DESC", params).df()
+
+
+def source_status() -> SourceStatus:
+    return SourceStatus(
+        source="SEC EDGAR public search with synthetic campaign metrics",
+        mode="synthetic",
+        refreshedAt=datetime.now(timezone.utc).isoformat(),
+        secSearchUrl=SEC_SEARCH_URL,
+    )
+
+
+@app.get("/api/health")
+def health() -> dict[str, str]:
+    return {"status": "ok", "source": SEC_SEARCH_URL}
+
+
+@app.get("/api/deals", response_model=DealPayload)
+def get_deals(
+    sector: str | None = None,
+    portal: str | None = None,
+) -> DealPayload:
+    frame = normalized_deals()
+    filtered = filter_deals(frame, sector, portal)
+    sectors = sorted(frame["sector"].unique().tolist())
+    return DealPayload(
+        deals=filtered.to_dict(orient="records"),
+        sectors=sectors,
+        status=source_status(),
+    )
+
+
+@app.get("/api/deals/download")
+def download_deals(
+    sector: str | None = None,
+    portal: str | None = None,
+) -> StreamingResponse:
+    frame = filter_deals(normalized_deals(), sector, portal)
+    buffer = StringIO()
+    frame.to_csv(buffer, index=False)
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="crowdfunding_deal_radar_sample.csv"'},
+    )
+</file>
+
+<file path="backend/requirements.txt">
+fastapi==0.115.5
+uvicorn[standard]==0.32.0
+pandas==2.2.3
+duckdb==1.1.3
+pydantic==2.9.2
+</file>
+
+<file path="backend/start-backend.ps1">
+$ErrorActionPreference = "Stop"
+
+if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
+  throw "Python launcher 'py' was not found. Install Python 3.13 or run the backend with an existing Python 3.13 environment."
+}
+
+$VenvRoot = Join-Path $env:LOCALAPPDATA "dextere-radar\.venv313"
+$PythonExe = Join-Path $VenvRoot "Scripts\python.exe"
+$Port = 8000
+$HealthUrl = "http://127.0.0.1:$Port/api/health"
+
+$ExistingPort = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+if ($ExistingPort) {
+  try {
+    $Health = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 3
+    if ($Health.status -eq "ok") {
+      Write-Host "DEXTERE backend is already running at $HealthUrl"
+      exit 0
+    }
+  }
+  catch {
+    $Owners = ($ExistingPort | Select-Object -ExpandProperty OwningProcess -Unique) -join ", "
+    throw "Port $Port is already in use by process id(s): $Owners. Stop that process or run uvicorn on another port."
+  }
+}
+
+if (-not (Test-Path $PythonExe)) {
+  New-Item -ItemType Directory -Force -Path (Split-Path $VenvRoot) | Out-Null
+  py -3.13 -m venv $VenvRoot
+}
+
+& $PythonExe -m pip install -r requirements.txt
+& $PythonExe -m uvicorn backend.main:app --reload --host 0.0.0.0 --port $Port
+</file>
+
+<file path="frontend/app/globals.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: #080712;
+}
+
+body {
+  margin: 0;
+  color: #e5e7eb;
+  font-family: Inter, Geist, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1f2937;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080712;
+}
+</file>
+
+<file path="frontend/app/layout.tsx">
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "DEXTERE | Crowdfunding Deal Radar",
+  description: "Capital formation intelligence dashboard for public crowdfunding deal signals."
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className="dark">
+      <body>{children}</body>
+    </html>
+  );
+}
+</file>
+
+<file path="frontend/app/page.tsx">
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as d3 from "d3";
+import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import {
+  Activity,
+  ArrowUpDown,
+  BarChart3,
+  Download,
+  ExternalLink,
+  Filter,
+  GitCompare,
+  Info,
+  Radar,
+  X
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Deal, sampleDeals } from "@/lib/deals";
+import { formatCurrency, formatPercent } from "@/lib/utils";
+
+type ApiPayload = {
+  deals: Deal[];
+  sectors: string[];
+  status: {
+    source: string;
+    mode: "live" | "synthetic";
+    refreshedAt: string;
+    secSearchUrl: string;
+  };
+};
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const ACCENT = "#2DD4BF";
+const SECONDARY = "#A78BFA";
+
+const fallbackPayload: ApiPayload = {
+  deals: sampleDeals,
+  sectors: Array.from(new Set(sampleDeals.map((deal) => deal.sector))).sort(),
+  status: {
+    source: "SEC EDGAR public search with synthetic campaign metrics",
+    mode: "synthetic",
+    refreshedAt: "2026-05-27T00:00:00.000Z",
+    secSearchUrl: "https://www.sec.gov/edgar/search/"
+  }
+};
+
+export default function CrowdfundingDealRadarPage() {
+  const [payload, setPayload] = useState<ApiPayload>(fallbackPayload);
+  const [sector, setSector] = useState("All");
+  const [portal, setPortal] = useState("All");
+  const [selectedIds, setSelectedIds] = useState<string[]>(["CR-8201", "CR-8205"]);
+  const [activeDealId, setActiveDealId] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [signatureOpen, setSignatureOpen] = useState(false);
+  const [refreshedLabel, setRefreshedLabel] = useState("Pending client sync");
+  const chartRef = useRef<HTMLDivElement>(null);
+  const compareChartRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/deals`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: ApiPayload) => setPayload(data))
+      .catch(() => setPayload(fallbackPayload));
+  }, []);
+
+  useEffect(() => {
+    setRefreshedLabel(new Date(payload.status.refreshedAt).toLocaleString());
+  }, [payload.status.refreshedAt]);
+
+  const portals = useMemo(() => Array.from(new Set(payload.deals.map((deal) => deal.portal))).sort(), [payload.deals]);
+
+  const filteredDeals = useMemo(
+    () =>
+      payload.deals.filter(
+        (deal) => (sector === "All" || deal.sector === sector) && (portal === "All" || deal.portal === portal)
+      ),
+    [payload.deals, portal, sector]
+  );
+
+  const visibleDeal = filteredDeals.find((deal) => deal.id === activeDealId) ?? filteredDeals[0] ?? payload.deals[0];
+  const activeDeal = payload.deals.find((deal) => deal.id === activeDealId) ?? visibleDeal;
+  const comparedDeals = payload.deals.filter((deal) => selectedIds.includes(deal.id));
+  const totalCommitted = filteredDeals.reduce((sum, deal) => sum + deal.committed, 0);
+  const avgTraction = d3.mean(filteredDeals, (deal) => deal.tractionScore) ?? 0;
+
+  const xScale = useMemo(
+    () =>
+      d3
+        .scaleLinear()
+        .domain(d3.extent(payload.deals, (deal) => deal.visibilityScore) as [number, number])
+        .range([14, 86]),
+    [payload.deals]
+  );
+
+  const yScale = useMemo(
+    () =>
+      d3
+        .scaleLinear()
+        .domain(d3.extent(payload.deals, (deal) => deal.tractionScore) as [number, number])
+        .range([78, 22]),
+    [payload.deals]
+  );
+
+  const columns = useMemo<ColumnDef<Deal>[]>(
+    () => [
+      {
+        accessorKey: "issuer",
+        header: "Issuer",
+        cell: ({ row }) => (
+          <button
+            className="text-left font-medium text-slate-100 hover:text-cyan"
+            onClick={() => openDeal(row.original.id)}
+            title="Open this deal in the Intelligence Panel"
+          >
+            {row.original.issuer}
+          </button>
+        )
+      },
+      { accessorKey: "sector", header: "Sector" },
+      { accessorKey: "portal", header: "Portal" },
+      {
+        accessorKey: "committed",
+        header: "Committed",
+        cell: ({ row }) => <span className="text-cyan">{formatCurrency(row.original.committed)}</span>
+      },
+      {
+        accessorKey: "tractionScore",
+        header: "Traction",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-20 rounded-full bg-slate-900">
+              <div className="h-full rounded-full bg-cyan" style={{ width: `${row.original.tractionScore}%` }} />
+            </div>
+            <span>{row.original.tractionScore}</span>
+          </div>
+        )
+      },
+      {
+        id: "compare",
+        header: "Compare",
+        cell: ({ row }) => {
+          const checked = selectedIds.includes(row.original.id);
+          return (
+            <input
+              aria-label={`Compare ${row.original.issuer}`}
+              checked={checked}
+              className="h-4 w-4 accent-cyan"
+              type="checkbox"
+              onChange={() => toggleCompare(row.original.id)}
+            />
+          );
+        }
+      }
+    ],
+    [selectedIds]
+  );
+
+  const table = useReactTable({ data: filteredDeals, columns, getCoreRowModel: getCoreRowModel() });
+
+  function openDeal(id: string) {
+    setActiveDealId(id);
+    setPanelOpen(true);
+  }
+
+  function toggleCompare(id: string) {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((dealId) => dealId !== id) : [...current.slice(-2), id]
+    );
+  }
+
+  useEffect(() => {
+    if (!panelOpen) return;
+    let mounted = true;
+    async function renderChart() {
+      if (!chartRef.current) return;
+      const echarts = await import("echarts");
+      if (!mounted || !chartRef.current) return;
+      const chart = echarts.init(chartRef.current, "dark", { renderer: "canvas" });
+      chart.setOption({
+        backgroundColor: "transparent",
+        color: [ACCENT, SECONDARY],
+        tooltip: {
+          trigger: "axis",
+          backgroundColor: "#0E111B",
+          borderColor: "#2DD4BF",
+          textStyle: { color: "#E5E7EB" }
+        },
+        grid: { top: 18, right: 18, bottom: 42, left: 42 },
+        xAxis: {
+          type: "category",
+          data: filteredDeals.map((deal) => deal.issuer.replaceAll(" ", "\n")),
+          axisLine: { lineStyle: { color: "#243042" } },
+          axisLabel: { color: "#94A3B8", fontSize: 10 }
+        },
+        yAxis: {
+          type: "value",
+          max: 100,
+          axisLine: { lineStyle: { color: "#243042" } },
+          splitLine: { lineStyle: { color: "#111827" } },
+          axisLabel: { color: "#94A3B8" }
+        },
+        series: [
+          {
+            name: "Traction score",
+            type: "bar",
+            data: filteredDeals.map((deal) => deal.tractionScore),
+            barWidth: 18,
+            itemStyle: { borderRadius: [4, 4, 0, 0] }
+          },
+          {
+            name: "Visibility score",
+            type: "line",
+            smooth: true,
+            data: filteredDeals.map((deal) => deal.visibilityScore),
+            symbolSize: 8
+          }
+        ]
+      });
+      const resize = () => chart.resize();
+      window.addEventListener("resize", resize);
+      return () => {
+        window.removeEventListener("resize", resize);
+        chart.dispose();
+      };
+    }
+    let cleanup: undefined | (() => void);
+    renderChart().then((dispose) => {
+      cleanup = dispose;
+    });
+    return () => {
+      mounted = false;
+      cleanup?.();
+    };
+  }, [filteredDeals, panelOpen]);
+
+  useEffect(() => {
+    if (!panelOpen) return;
+    let mounted = true;
+    async function renderComparePlot() {
+      if (!compareChartRef.current) return;
+      const Plotly = (await import("plotly.js-dist-min")).default;
+      if (!mounted || !compareChartRef.current) return;
+      await Plotly.newPlot(
+        compareChartRef.current,
+        [
+          {
+            x: comparedDeals.map((deal) => deal.visibilityScore),
+            y: comparedDeals.map((deal) => deal.termsScore),
+            text: comparedDeals.map((deal) => deal.issuer),
+            mode: "markers+text",
+            type: "scatter",
+            textposition: "top center",
+            marker: {
+              color: comparedDeals.map((deal) => deal.tractionScore),
+              colorscale: [
+                [0, SECONDARY],
+                [1, ACCENT]
+              ],
+              size: comparedDeals.map((deal) => Math.max(14, deal.committed / 70000)),
+              line: { color: ACCENT, width: 1 }
+            }
+          }
+        ],
+        {
+          paper_bgcolor: "rgba(0,0,0,0)",
+          plot_bgcolor: "rgba(0,0,0,0)",
+          margin: { l: 34, r: 10, t: 10, b: 34 },
+          height: 190,
+          font: { color: "#CBD5E1", size: 10 },
+          xaxis: { title: "Visibility", gridcolor: "#111827", zerolinecolor: "#243042" },
+          yaxis: { title: "Terms", gridcolor: "#111827", zerolinecolor: "#243042" },
+          showlegend: false
+        },
+        { displayModeBar: false, responsive: true }
+      );
+    }
+    renderComparePlot();
+    return () => {
+      mounted = false;
+      if (compareChartRef.current) {
+        import("plotly.js-dist-min").then((module) => module.default.purge(compareChartRef.current as HTMLElement));
+      }
+    };
+  }, [comparedDeals, panelOpen]);
+
+  const downloadHref = `${API_BASE}/api/deals/download?sector=${encodeURIComponent(sector)}&portal=${encodeURIComponent(portal)}`;
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-background text-slate-200">
+      <CinematicBackdrop />
+
+      <header className="pointer-events-none fixed left-0 right-0 top-0 z-30 border-b border-white/10 bg-background/45 px-5 py-3 backdrop-blur-xl">
+        <div className="pointer-events-auto flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-cyan">
+              <Radar className="h-4 w-4" />
+              Capital Formation Rail
+            </div>
+            <h1 className="mt-1 text-xl font-semibold text-white">Crowdfunding Deal Radar</h1>
+          </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <FilterSelect label="Sector" value={sector} values={["All", ...payload.sectors]} onChange={setSector} />
+              <FilterSelect label="Portal" value={portal} values={["All", ...portals]} onChange={setPortal} />
+              <Button
+                aria-label="Open developer signature"
+                size="icon"
+              variant="outline"
+              title="Developer signature"
+              onClick={() => setSignatureOpen(true)}
+            >
+              <Info className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <section className="relative z-10 flex min-h-screen flex-col justify-between px-5 pb-5 pt-28">
+        <div className="grid gap-4 lg:grid-cols-[minmax(280px,0.28fr)_1fr]">
+          <div className="max-w-xl">
+            <Badge className="mb-3">Real Rails Intelligence Library</Badge>
+            <p className="text-sm uppercase tracking-[0.18em] text-slate-500">Cinematic Capital Formation View</p>
+            <h2 className="mt-3 text-4xl font-semibold leading-tight text-white md:text-5xl">
+              Public fundraising signals, mapped as capital velocity.
+            </h2>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-slate-300">
+              Click any issuer marker to open the Intelligence Panel. The stage plots traction against visibility so
+              everyday viewers, builders, and allocators can see which campaigns are gathering momentum.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 self-start">
+            <StageStat label="Filtered capital" value={formatCurrency(totalCommitted)} />
+            <StageStat label="Active deals" value={String(filteredDeals.length)} />
+            <StageStat label="Avg traction" value={avgTraction.toFixed(1)} />
+          </div>
+        </div>
+
+        <div className="relative mt-5 min-h-[520px] flex-1 rounded-none border border-white/10 bg-[#080712]/60 shadow-[0_0_80px_rgba(45,212,191,0.08)] backdrop-blur-sm">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(45,212,191,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(45,212,191,0.08)_1px,transparent_1px)] bg-[size:64px_64px]" />
+          <div className="absolute left-5 top-5 text-xs uppercase tracking-[0.2em] text-slate-500">
+            Visibility axis / Traction axis
+          </div>
+          <div className="absolute bottom-5 left-5 max-w-sm rounded-md border border-white/10 bg-background/70 p-3 text-xs text-slate-400 backdrop-blur">
+            Marker size reflects committed capital. Color intensity reflects rail-control pressure from portal,
+            disclosure, and campaign timing signals.
+          </div>
+
+          {filteredDeals.map((deal) => {
+            const isActive = activeDeal?.id === deal.id && panelOpen;
+            const size = Math.max(42, Math.min(92, 34 + deal.committed / 36000));
+            return (
+              <button
+                key={deal.id}
+                className="group absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan/60 bg-cyan/10 text-left shadow-[0_0_32px_rgba(45,212,191,0.24)] transition hover:scale-105 hover:bg-cyan/20 focus:outline-none focus:ring-1 focus:ring-cyan"
+                style={{
+                  left: `${xScale(deal.visibilityScore)}%`,
+                  top: `${yScale(deal.tractionScore)}%`,
+                  width: size,
+                  height: size
+                }}
+                title={`${deal.issuer}: ${deal.sector}, ${formatCurrency(deal.committed)} committed`}
+                onClick={() => openDeal(deal.id)}
+              >
+                <span className="absolute inset-1 rounded-full border border-white/10 bg-[#0E111B]/80" />
+                <span
+                  className={`absolute inset-0 rounded-full transition ${isActive ? "animate-ping bg-cyan/20" : "group-hover:bg-cyan/10"}`}
+                />
+                <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan" />
+                <span className="absolute left-1/2 top-[calc(100%+8px)] w-40 -translate-x-1/2 text-center text-xs font-medium text-slate-200 opacity-80 group-hover:text-white">
+                  {deal.issuer}
+                </span>
+              </button>
+            );
+          })}
+
+          {filteredDeals.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">
+              No deals match the selected filters.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div
+        className={`fixed inset-0 z-40 bg-black/35 transition ${panelOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+        onClick={() => setPanelOpen(false)}
+      />
+
+      <aside
+        className={`fixed right-0 top-0 z-50 h-screen w-full max-w-[520px] overflow-y-auto border-l border-white/10 bg-[#080712]/95 shadow-[0_0_60px_rgba(0,0,0,0.55)] backdrop-blur-xl transition-transform duration-300 ${panelOpen ? "translate-x-0" : "translate-x-full"}`}
+      >
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#080712]/90 p-4 backdrop-blur">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-cyan">Intelligence Panel</p>
+            <h3 className="mt-1 text-lg font-semibold text-white">{activeDeal.issuer}</h3>
+          </div>
+          <Button aria-label="Close Intelligence Panel" size="icon" variant="ghost" onClick={() => setPanelOpen(false)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="space-y-4 p-4">
+          <Card className="shadow-cyan">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-cyan" />
+                Deal Terms
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-xs uppercase text-slate-500">Filtered committed capital</p>
+                <p className="mt-1 text-3xl font-semibold text-white">{formatCurrency(totalCommitted)}</p>
+                <p className="mt-1 text-sm text-slate-400">Average traction score: {avgTraction.toFixed(1)}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Metric label="Active issuer" value={activeDeal.issuer} />
+                <Metric label="Terms" value={activeDeal.securityType} />
+                <Metric label="Target" value={formatCurrency(activeDeal.targetRaise)} />
+                <Metric label="Max" value={formatCurrency(activeDeal.maxRaise)} />
+              </div>
+              <Button asChild variant="outline" className="w-full">
+                <a href={activeDeal.secSearchUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  Open SEC EDGAR
+                </a>
+              </Button>
+              <Button asChild className="w-full" title="Download current filtered dataset">
+                <a href={downloadHref}>
+                  <Download className="h-4 w-4" />
+                  Download Sample Data
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-cyan" />
+                Traction Chart
+              </CardTitle>
+              <Badge>{filteredDeals.length} active deals</Badge>
+            </CardHeader>
+            <CardContent>
+              <div ref={chartRef} className="h-[280px] w-full" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GitCompare className="h-4 w-4 text-indigo" />
+                Compare Deals
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div ref={compareChartRef} className="h-[190px] w-full" />
+              {comparedDeals.map((deal) => (
+                <div key={deal.id} className="rounded-md border border-border bg-background/55 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-white">{deal.issuer}</p>
+                      <p className="text-xs text-slate-400">
+                        {deal.securityType} | {deal.portal}
+                      </p>
+                    </div>
+                    <Badge className="border-indigo/40 bg-indigo/10 text-indigo">{deal.tractionScore}</Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <Metric label="Committed" value={formatCurrency(deal.committed)} />
+                    <Metric label="Valuation" value={formatCurrency(deal.valuationCap)} />
+                    <Metric label="Growth" value={formatPercent(deal.revenueGrowth)} />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Deal Table</CardTitle>
+              <span
+                className="flex items-center gap-1 text-xs text-slate-400"
+                title="SEC EDGAR source link is retained for public filing lookup."
+              >
+                <Info className="h-3.5 w-3.5 text-cyan" />
+                SEC EDGAR linked
+              </span>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead className="bg-white/[0.02] text-xs uppercase text-slate-400">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th key={header.id} className="px-4 py-3 text-left font-medium">
+                          <span className="inline-flex items-center gap-1">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.id !== "compare" && <ArrowUpDown className="h-3 w-3" />}
+                          </span>
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className={`border-t border-border transition hover:bg-cyan/5 ${row.original.id === activeDeal.id ? "bg-cyan/5" : ""}`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3 text-slate-300">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <NarrativeCard title="Why This Matters">
+            Makes alternative capital formation tangible to the public. The dashboard translates Form C visibility,
+            terms, committed capital, and synthetic traction signals into a compact view of which issuers are gaining
+            attention and how efficiently campaigns move from disclosure to investor demand.
+          </NarrativeCard>
+
+          <NarrativeCard title="Who Controls the Rail">
+            Regulation crowdfunding is shaped by issuers, SEC disclosure rules, registered funding portals or
+            broker-dealers, investor limits, and platform distribution. Deal visibility, terms, filings, and traction
+            signals influence which companies can raise and which investors can evaluate opportunities.
+          </NarrativeCard>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Data Source Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Mode</span>
+                <Badge className={payload.status.mode === "live" ? "" : "border-indigo/40 bg-indigo/10 text-indigo"}>
+                  {payload.status.mode.toUpperCase()}
+                </Badge>
+              </div>
+              <p className="text-slate-300">{payload.status.source}</p>
+              <p className="text-xs text-slate-500">Refreshed: {refreshedLabel}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      {signatureOpen && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-end bg-black/40 p-4 pt-20 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-white/10 bg-[#080712]/95 p-4 shadow-cyan">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.18em] text-cyan">Developer Signature</p>
+                <h3 className="mt-1 text-lg font-semibold text-white">Infocreon Header</h3>
+              </div>
+              <Button aria-label="Close developer signature" size="icon" variant="ghost" onClick={() => setSignatureOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="mt-4 grid gap-2 text-sm">
+              <SignatureRow label="Architect" value="Ananthakrishnan A H" />
+              <SignatureRow label="Git user" value="Eternal66-6" />
+              <SignatureRow label="Batch" value="Batch 4 Interns" />
+              <SignatureRow label="Stack" value="Next.js, TypeScript, Tailwind CSS, FastAPI, Pandas, DuckDB, ECharts, Plotly" />
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function CinematicBackdrop() {
+  return (
+    <div aria-hidden="true" className="absolute inset-0">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(45,212,191,0.12),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(167,139,250,0.10),transparent_28%),linear-gradient(135deg,#05040D_0%,#080712_48%,#030A0B_100%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.045),transparent_22%,transparent_74%,rgba(45,212,191,0.05))]" />
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  values,
+  onChange
+}: {
+  label: string;
+  value: string;
+  values: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-[#0E111B]/80 px-3 text-sm text-slate-300 shadow-[0_0_18px_rgba(45,212,191,0.08)] backdrop-blur">
+      <Filter className="h-4 w-4 text-cyan" />
+      <span className="text-xs text-slate-500">{label}</span>
+      <select
+        className="max-w-[150px] bg-transparent text-sm outline-none"
+        value={value}
+        title={label}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {values.map((item) => (
+          <option key={item} value={item} className="bg-[#0E111B]">
+            {item}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function StageStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-[#0E111B]/72 p-3 backdrop-blur">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-2 truncate text-xl font-semibold text-white" title={value}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background/50 p-2">
+      <p className="text-[11px] uppercase text-slate-500">{label}</p>
+      <p className="mt-1 truncate text-sm font-medium text-slate-100" title={value}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function NarrativeCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm leading-6 text-slate-300">{children}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SignatureRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-white/[0.03] p-3">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-1 text-slate-100">{value}</p>
+    </div>
+  );
+}
+</file>
+
+<file path="frontend/components/ui/badge.tsx">
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md border border-cyan/30 bg-cyan/10 px-2 py-0.5 text-xs font-medium text-cyan",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+</file>
+
+<file path="frontend/components/ui/button.tsx">
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-cyan text-[#03121a] shadow-cyan hover:bg-[#67d5ff]",
+        outline: "bg-[#0B1117]/80 text-slate-200 hover:border-cyan hover:text-cyan",
+        ghost: "border-transparent bg-transparent text-slate-300 hover:bg-white/5 hover:text-cyan"
+      },
+      size: {
+        default: "h-9 px-3",
+        icon: "h-9 w-9 px-0"
+      }
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default"
+    }
+  }
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+  }
+);
+Button.displayName = "Button";
+
+export { Button, buttonVariants };
+</file>
+
+<file path="frontend/components/ui/card.tsx">
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border border-border bg-[#0B1117]/84 shadow-[0_16px_50px_rgba(0,0,0,0.25)] backdrop-blur",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("border-b border-border p-4", className)} {...props} />;
+}
+
+export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return <h2 className={cn("text-sm font-semibold text-slate-100", className)} {...props} />;
+}
+
+export function CardContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("p-4", className)} {...props} />;
+}
+</file>
+
+<file path="frontend/lib/deals.ts">
+export type Deal = {
+  id: string;
+  issuer: string;
+  sector: string;
+  portal: string;
+  formType: string;
+  filingDate: string;
+  state: string;
+  targetRaise: number;
+  maxRaise: number;
+  committed: number;
+  valuationCap: number;
+  securityType: string;
+  investorCount: number;
+  daysRemaining: number;
+  monthlyRevenue: number;
+  revenueGrowth: number;
+  tractionScore: number;
+  visibilityScore: number;
+  termsScore: number;
+  railControlScore: number;
+  secSearchUrl: string;
+};
+
+export const sampleDeals: Deal[] = [
+  {
+    id: "CR-8201",
+    issuer: "Nautilus Grid Analytics",
+    sector: "Climate Tech",
+    portal: "Republic",
+    formType: "Form C",
+    filingDate: "2026-04-18",
+    state: "CA",
+    targetRaise: 125000,
+    maxRaise: 1240000,
+    committed: 842000,
+    valuationCap: 12000000,
+    securityType: "SAFE",
+    investorCount: 1186,
+    daysRemaining: 17,
+    monthlyRevenue: 146000,
+    revenueGrowth: 38.4,
+    tractionScore: 91,
+    visibilityScore: 87,
+    termsScore: 76,
+    railControlScore: 68,
+    secSearchUrl: "https://www.sec.gov/edgar/search/"
+  },
+  {
+    id: "CR-8202",
+    issuer: "LedgerLane Health",
+    sector: "Health Tech",
+    portal: "Wefunder",
+    formType: "Form C/A",
+    filingDate: "2026-03-29",
+    state: "NY",
+    targetRaise: 75000,
+    maxRaise: 980000,
+    committed: 391000,
+    valuationCap: 9500000,
+    securityType: "Crowd Note",
+    investorCount: 642,
+    daysRemaining: 24,
+    monthlyRevenue: 89000,
+    revenueGrowth: 22.7,
+    tractionScore: 74,
+    visibilityScore: 78,
+    termsScore: 81,
+    railControlScore: 72,
+    secSearchUrl: "https://www.sec.gov/edgar/search/"
+  },
+  {
+    id: "CR-8203",
+    issuer: "Aurora Pantry Systems",
+    sector: "Consumer",
+    portal: "StartEngine",
+    formType: "Form C",
+    filingDate: "2026-02-14",
+    state: "TX",
+    targetRaise: 100000,
+    maxRaise: 1500000,
+    committed: 1190000,
+    valuationCap: 18000000,
+    securityType: "Common Equity",
+    investorCount: 2211,
+    daysRemaining: 9,
+    monthlyRevenue: 238000,
+    revenueGrowth: 31.2,
+    tractionScore: 88,
+    visibilityScore: 93,
+    termsScore: 69,
+    railControlScore: 64,
+    secSearchUrl: "https://www.sec.gov/edgar/search/"
+  },
+  {
+    id: "CR-8204",
+    issuer: "CipherForge Compliance",
+    sector: "Fintech",
+    portal: "Netcapital",
+    formType: "Form C",
+    filingDate: "2026-05-06",
+    state: "MA",
+    targetRaise: 50000,
+    maxRaise: 750000,
+    committed: 214000,
+    valuationCap: 7000000,
+    securityType: "SAFE",
+    investorCount: 336,
+    daysRemaining: 41,
+    monthlyRevenue: 62000,
+    revenueGrowth: 44.9,
+    tractionScore: 70,
+    visibilityScore: 66,
+    termsScore: 84,
+    railControlScore: 79,
+    secSearchUrl: "https://www.sec.gov/edgar/search/"
+  },
+  {
+    id: "CR-8205",
+    issuer: "Meadow Robotics",
+    sector: "Industrial AI",
+    portal: "Republic",
+    formType: "Form C/A",
+    filingDate: "2026-01-27",
+    state: "PA",
+    targetRaise: 150000,
+    maxRaise: 2000000,
+    committed: 1574000,
+    valuationCap: 24000000,
+    securityType: "Preferred Equity",
+    investorCount: 1745,
+    daysRemaining: 13,
+    monthlyRevenue: 304000,
+    revenueGrowth: 29.6,
+    tractionScore: 93,
+    visibilityScore: 89,
+    termsScore: 71,
+    railControlScore: 61,
+    secSearchUrl: "https://www.sec.gov/edgar/search/"
+  },
+  {
+    id: "CR-8206",
+    issuer: "Northstar Learning Lab",
+    sector: "Education",
+    portal: "Wefunder",
+    formType: "Form C",
+    filingDate: "2026-04-02",
+    state: "IL",
+    targetRaise: 25000,
+    maxRaise: 500000,
+    committed: 184000,
+    valuationCap: 5400000,
+    securityType: "Revenue Share",
+    investorCount: 487,
+    daysRemaining: 32,
+    monthlyRevenue: 41000,
+    revenueGrowth: 18.3,
+    tractionScore: 65,
+    visibilityScore: 72,
+    termsScore: 88,
+    railControlScore: 76,
+    secSearchUrl: "https://www.sec.gov/edgar/search/"
+  }
+];
+</file>
+
+<file path="frontend/lib/utils.ts">
+import { ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+export function formatCurrency(value: number) {
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
+  return `$${value.toLocaleString()}`;
+}
+
+export function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+</file>
+
+<file path="frontend/next-env.d.ts">
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+</file>
+
+<file path="frontend/next.config.mjs">
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "standalone"
+};
+
+export default nextConfig;
+</file>
+
+<file path="frontend/package.json">
+{
+  "name": "dextere-crowdfunding-deal-radar",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "api": "uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.1.0",
+    "@tanstack/react-table": "^8.20.5",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "d3": "^7.9.0",
+    "echarts": "^5.5.1",
+    "lucide-react": "^0.468.0",
+    "next": "^16.2.6",
+    "plotly.js-dist-min": "^2.35.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.5.4",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/node": "^20.17.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^16.2.6",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}
+</file>
+
+<file path="frontend/postcss.config.js">
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {}
+  }
+};
+</file>
+
+<file path="frontend/tailwind.config.ts">
+import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
+
+const config: Config = {
+  darkMode: ["class"],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        background: "#080712",
+        surface: "#0E111B",
+        cyan: "#2DD4BF",
+        indigo: "#A78BFA",
+        border: "#243042"
+      },
+      fontFamily: {
+        sans: ["Inter", "Geist", "ui-sans-serif", "system-ui", "sans-serif"]
+      },
+      boxShadow: {
+        cyan: "0 0 0 0.5px rgba(45,212,191,0.75), 0 0 24px rgba(45,212,191,0.14)"
+      }
+    }
+  },
+  plugins: [tailwindcssAnimate]
+};
+
+export default config;
+</file>
+
+<file path="frontend/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+</file>
+
+<file path="frontend/types/plotly.js-dist-min.d.ts">
+declare module "plotly.js-dist-min" {
+  const Plotly: {
+    newPlot: (element: HTMLElement, data: unknown[], layout?: unknown, config?: unknown) => Promise<unknown>;
+    purge: (element: HTMLElement) => void;
+  };
+  export default Plotly;
+}
+</file>
+
+<file path="README.md">
+# Crowdfunding Deal Radar
+
+Production-style PoC for the **Real Rails Intelligence Library**, focused on the **Capital Formation** rail.
+
+This demo turns public crowdfunding deal information into a clean, dark intelligence dashboard for everyday viewers, builders, and allocators. It uses SEC EDGAR as the public filing reference point and clearly labeled synthetic campaign metrics where public portal-level event feeds are not available.
+
+## Project Summary
+
+**PoC ID:** 82  
+**Rail Category:** Capital Formation  
+**Core Topic:** Public deal feed, terms, sectors, and traction snapshots  
+**Primary Source:** [SEC EDGAR Search](https://www.sec.gov/edgar/search/)  
+**Mock Data Policy:** Synthetic campaign metrics are used for traction and portal-style signals.
+
+## Features
+
+- Deal table with issuer, sector, portal, committed capital, traction, and compare controls.
+- Sector filter for scanning active deals by market category.
+- Portal filter for viewing distribution across crowdfunding platforms.
+- Terms cards for the selected deal, including security type, target raise, and maximum raise.
+- Traction chart showing deal momentum and visibility signals.
+- Compare deals panel for side-by-side terms and traction review.
+- "Why This Matters" narrative panel.
+- "Who Controls the Rail" power-dynamics panel.
+- Data source status panel showing synthetic/live mode.
+- Downloadable CSV sample data for the currently filtered dataset.
+- SEC EDGAR link for public filing lookup.
+
+## Stack
+
+### Frontend
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+- shadcn-style reusable UI primitives
+- TanStack Table
+- Apache ECharts
+- Plotly
+- D3 utilities
+- Lucide icons
+
+### Backend
+
+- Python FastAPI
+- Pandas for normalization and metric calculation
+- DuckDB for filtering/querying the in-memory dataset
+- CSV export endpoint
+
+## Data Approach
+
+SEC EDGAR is used as the public source reference for issuer filing lookup. Because regulation crowdfunding portal campaign metrics are not uniformly available as a public event-level feed, this PoC uses representative synthetic data for:
+
+- committed capital
+- target raise
+- maximum raise
+- valuation cap
+- investor count
+- monthly revenue
+- revenue growth
+- traction score
+- visibility score
+- terms score
+- rail control score
+
+The app labels this mode as **Synthetic** in the Data Source Status panel.
+
+## Project Structure
+
+```text
+.
+|-- frontend/             # Next.js application
+|   |-- app/              # App Router page and global styles
+|   |-- components/ui/    # Reusable UI primitives
+|   |-- lib/              # Shared frontend data/types/utilities
+|   |-- types/            # Local TypeScript declarations
+|   |-- package.json      # Frontend scripts and dependencies
+|   |-- next.config.mjs
+|   |-- tailwind.config.ts
+|   |-- tsconfig.json
+|   `-- postcss.config.js
+|-- backend/              # FastAPI service and ETL-style normalization logic
+|   |-- main.py           # FastAPI entry point
+|   |-- requirements.txt  # Backend Python dependencies
+|   `-- start-backend.ps1 # Windows backend launcher
+`-- README.md
+```
+
+## Running Locally
+
+Clone the repository:
+
+```powershell
+git clone https://github.com/Real-Rails-Interns-Batch4/PoC-82-crowdfunding-deal-radar.git
+cd PoC-82-crowdfunding-deal-radar
+```
+
+Install frontend dependencies:
+
+```powershell
+cd frontend
+npm install
+```
+
+Start the Next.js frontend:
+
+```powershell
+npm run dev
+```
+
+Start the FastAPI backend in a second terminal:
+
+```powershell
+cd backend
+.\start-backend.ps1
+```
+
+Open the frontend:
+
+```text
+http://localhost:3000
+```
+
+If port `3000` is already in use, Next.js may choose another port such as:
+
+```text
+http://localhost:3001
+```
+
+Backend health check:
+
+```text
+http://127.0.0.1:8000/api/health
+```
+
+## Backend Notes For Windows And Pandas
+
+The Pandas issue is **not expected for everyone**. It mainly affects users running very new Python versions, especially Python 3.14, where some pinned data-science packages may not yet have prebuilt wheels.
+
+If Python uses a compatible wheel, installation should work normally. If Python tries to build Pandas from source and fails with a Meson or Visual Studio toolchain error, use Python 3.13.
+
+This project includes a Windows helper script:
+
+```powershell
+cd backend
+.\start-backend.ps1
+```
+
+The script uses Python 3.13 and creates the backend virtual environment under:
+
+```text
+%LOCALAPPDATA%\dextere-radar\.venv313
+```
+
+This also avoids virtualenv launcher-copy issues that can happen on mapped drives such as `Z:`.
+
+Recommended backend setup on Windows:
+
+```powershell
+py -3.13 --version
+cd backend
+.\start-backend.ps1
+```
+
+If `py -3.13 --version` fails, install Python 3.13 from python.org or use another Python version that can install `pandas==2.2.3` from a wheel.
+
+Manual backend setup:
+
+```powershell
+py -3.13 -m venv "$env:LOCALAPPDATA\dextere-radar\.venv313"
+& "$env:LOCALAPPDATA\dextere-radar\.venv313\Scripts\activate.ps1"
+pip install -r backend\requirements.txt
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## API Endpoints
+
+```text
+GET /api/health
+```
+
+Returns backend status and the SEC EDGAR source link.
+
+```text
+GET /api/deals
+```
+
+Returns normalized deal records, available sectors, and source status.
+
+Optional query parameters:
+
+```text
+sector=Fintech
+portal=Republic
+```
+
+```text
+GET /api/deals/download
+```
+
+Downloads the filtered dataset as CSV.
+
+Optional query parameters:
+
+```text
+sector=Climate%20Tech
+portal=Wefunder
+```
+
+## Verification
+
+The current implementation has been checked for:
+
+- Next.js production build.
+- FastAPI import and data response.
+- Deal table rendering.
+- Sector filtering.
+- Terms cards.
+- Traction chart rendering.
+- Compare deals workflow.
+- Downloadable sample data.
+- DEXTERE dark dashboard styling.
+
+Build command:
+
+```powershell
+cd frontend
+npm run build
+```
+
+## Submission Note
+
+This is a PoC-grade intelligence dashboard. It is intentionally scoped to a small representative dataset so reviewers can evaluate the workflow, visual language, and rail-intelligence framing without requiring live portal integrations.
+
+Recommended supervisor note:
+
+```text
+This demo uses SEC EDGAR as the public filing reference and synthetic campaign metrics for crowdfunding traction signals because public portal-level event feeds are not uniformly available. The app demonstrates the required deal table, sector filtering, terms cards, traction chart, compare workflow, narrative rail panels, and CSV export.
+```
+</file>
+
+</files>
