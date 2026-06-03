@@ -32,7 +32,7 @@ class DealPayload(BaseModel):
     status: SourceStatus
 
 
-app = FastAPI(title="DEXTERE Crowdfunding Deal Radar", version="0.1.0")
+app = FastAPI(title="Infocreon Internship - Crowdfunding Deal Radar", version="0.1.0")
 
 # Dynamic CORS origins from environment variable
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")

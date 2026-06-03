@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DEXTERE | Crowdfunding Deal Radar",
+  title: "Infocreon Internship - Crowdfunding Deal Radar",
   description: "Capital formation intelligence dashboard for public crowdfunding deal signals."
 };
 

@@ -324,7 +324,7 @@ export default function CrowdfundingDealRadarPage() {
               <Radar className="h-4 w-4" />
               Capital Formation Rail
             </div>
-            <h1 className="mt-1 text-xl font-semibold text-white">Crowdfunding Deal Radar</h1>
+            <h1 className="mt-1 text-xl font-semibold text-white">Infocreon Internship - Crowdfunding Deal Radar</h1>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <FilterSelect label="Sector" value={sector} values={["All", ...(payload?.sectors ?? [])]} onChange={setSector} />

@@ -1,4 +1,4 @@
-# Crowdfunding Deal Radar
+# Infocreon Internship - Crowdfunding Deal Radar
 
 Production-style PoC for the **Real Rails Intelligence Library**, focused on the **Capital Formation** rail.
 

@@ -1,0 +1,13 @@
+==================================================
+ CROWDFUNDING DEAL RADAR - UAT REPORT
+==================================================
+
+Target URL: https://crowdfunding-frontend-2bqs.onrender.com
+
+TEST CASE                 | STATUS   | MESSAGE
+--------------------------------------------------------------------------------
+Visual Load               | PASS     | Page loaded with cinematic backdrop.
+Data Handshake            | PASS     | Panel opened for 'Meadow Robotics' with data blocks.
+Signature Popover         | PASS     | Credentials verified: Ananthakrishnan A H, Batch 4 Interns.
+
+==================================================
