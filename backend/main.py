@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import json
 from datetime import datetime, timezone
 from io import StringIO
@@ -32,9 +33,13 @@ class DealPayload(BaseModel):
 
 
 app = FastAPI(title="DEXTERE Crowdfunding Deal Radar", version="0.1.0")
+
+# Dynamic CORS origins from environment variable
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):30\d{2}$",
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

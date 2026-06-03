@@ -1,8 +1,46 @@
-node_modules
-.next
-.venv
-.venv313
-__pycache__
+# Dependencies
+node_modules/
+.venv/
+.venv313/
+venv/
+env/
+ENV/
+bin/
+lib/
+include/
+share/
+spec/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Python cache
+__pycache__/
 *.pyc
-.env.local
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Environment files
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.lock
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+
+#repomix
+repomix-output.xml

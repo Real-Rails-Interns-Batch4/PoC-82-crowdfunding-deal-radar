@@ -22,7 +22,7 @@ import { Deal, ApiPayload  } from "@/lib/deals";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const ACCENT = "#2DD4BF";
 const SECONDARY = "#A78BFA";
 
@@ -70,48 +70,48 @@ export default function CrowdfundingDealRadarPage() {
   }, [payload?.status.refreshedAt]);
 
   const portals = useMemo(() => {
-    if (!payload) return [];
+    if (!payload?.deals) return [];
     return Array.from(new Set(payload.deals.map((deal) => deal.portal))).sort();
-  }, [payload?.deals]);
+  }, [payload]);
 
   const filteredDeals = useMemo(() => {
-    if (!payload) return [];
+    if (!payload?.deals) return [];
     return payload.deals.filter(
       (deal) => (sector === "All" || deal.sector === sector) && (portal === "All" || deal.portal === portal)
     );
-  }, [payload?.deals, portal, sector]);
+  }, [payload, portal, sector]);
 
   const comparedDeals = useMemo(() => {
-    if (!payload) return [];
+    if (!payload?.deals) return [];
     return payload.deals.filter((deal) => selectedIds.includes(deal.id));
-  }, [payload?.deals, selectedIds]);
+  }, [payload, selectedIds]);
 
   const totalCommitted = useMemo(() => filteredDeals.reduce((sum, deal) => sum + deal.committed, 0), [filteredDeals]);
   const avgTraction = useMemo(() => d3.mean(filteredDeals, (deal) => deal.tractionScore) ?? 0, [filteredDeals]);
 
   const visibleDeal = useMemo(() => {
-    if (!payload) return null;
+    if (!payload?.deals || payload.deals.length === 0) return null;
     return filteredDeals.find((deal) => deal.id === activeDealId) ?? filteredDeals[0] ?? payload.deals[0];
   }, [payload, filteredDeals, activeDealId]);
 
   const activeDeal = useMemo(() => {
-    if (!payload) return null;
+    if (!payload?.deals) return null;
     return payload.deals.find((deal) => deal.id === activeDealId) ?? visibleDeal;
   }, [payload, activeDealId, visibleDeal]);
 
   const xScale = useMemo(() => {
-    if (!payload) return d3.scaleLinear().domain([0, 100]).range([14, 86]);
+    if (!payload?.deals || payload.deals.length === 0) return d3.scaleLinear().domain([0, 100]).range([14, 86]);
     const extent = d3.extent(payload.deals, (deal) => deal.visibilityScore);
     const domain = (extent[0] === undefined ? [0, 100] : extent) as [number, number];
     return d3.scaleLinear().domain(domain).range([14, 86]);
-  }, [payload?.deals]);
+  }, [payload]);
 
   const yScale = useMemo(() => {
-    if (!payload) return d3.scaleLinear().domain([0, 100]).range([78, 22]);
+    if (!payload?.deals || payload.deals.length === 0) return d3.scaleLinear().domain([0, 100]).range([78, 22]);
     const extent = d3.extent(payload.deals, (deal) => deal.tractionScore);
     const domain = (extent[0] === undefined ? [0, 100] : extent) as [number, number];
     return d3.scaleLinear().domain(domain).range([78, 22]);
-  }, [payload?.deals]);
+  }, [payload]);
 
   const columns = useMemo<ColumnDef<Deal>[]>(
     () => [
@@ -170,7 +170,7 @@ export default function CrowdfundingDealRadarPage() {
   const table = useReactTable({ data: filteredDeals, columns, getCoreRowModel: getCoreRowModel() });
 
   useEffect(() => {
-    if (!panelOpen) return;
+    if (!panelOpen || filteredDeals.length === 0) return;
     let chartInstance: any = null;
     async function renderChart() {
       if (!chartRef.current) return;
@@ -227,7 +227,7 @@ export default function CrowdfundingDealRadarPage() {
   }, [filteredDeals, panelOpen]);
 
   useEffect(() => {
-    if (!panelOpen) return;
+    if (!panelOpen || comparedDeals.length === 0) return;
     let mounted = true;
     async function renderComparePlot() {
       if (!compareChartRef.current) return;
@@ -276,7 +276,8 @@ export default function CrowdfundingDealRadarPage() {
     };
   }, [comparedDeals, panelOpen]);
 
-  // Loading state
+  const downloadHref = `${API_BASE}/api/deals/download?sector=${encodeURIComponent(sector)}&portal=${encodeURIComponent(portal)}`;
+
   if (!payload) {
     return (
       <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background text-slate-200">
@@ -289,13 +290,17 @@ export default function CrowdfundingDealRadarPage() {
                 Make sure the FastAPI server is running at{" "}
                 <code className="rounded bg-white/10 px-1 py-0.5">{API_BASE}</code>
               </p>
-              <Button
-                className="mt-4"
-                variant="outline"
-                onClick={() => { setFetchError(false); window.location.reload(); }}
-              >
-                Retry
-              </Button>
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { setFetchError(false); window.location.reload(); }}
+                >
+                  Retry Connection
+                </Button>
+                <p className="text-[10px] text-slate-500 italic">
+                  Note: If running in Docker, ensure both containers are healthy.
+                </p>
+              </div>
             </>
           ) : (
             <>
@@ -307,9 +312,6 @@ export default function CrowdfundingDealRadarPage() {
       </main>
     );
   }
-
-
-  const downloadHref = `${API_BASE}/api/deals/download?sector=${encodeURIComponent(sector)}&portal=${encodeURIComponent(portal)}`;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-slate-200">
@@ -324,12 +326,12 @@ export default function CrowdfundingDealRadarPage() {
             </div>
             <h1 className="mt-1 text-xl font-semibold text-white">Crowdfunding Deal Radar</h1>
           </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <FilterSelect label="Sector" value={sector} values={["All", ...payload.sectors]} onChange={setSector} />
-              <FilterSelect label="Portal" value={portal} values={["All", ...portals]} onChange={setPortal} />
-              <Button
-                aria-label="Open developer signature"
-                size="icon"
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <FilterSelect label="Sector" value={sector} values={["All", ...(payload?.sectors ?? [])]} onChange={setSector} />
+            <FilterSelect label="Portal" value={portal} values={["All", ...portals]} onChange={setPortal} />
+            <Button
+              aria-label="Open developer signature"
+              size="icon"
               variant="outline"
               title="Developer signature"
               onClick={() => setSignatureOpen(true)}
@@ -339,6 +341,7 @@ export default function CrowdfundingDealRadarPage() {
           </div>
         </div>
       </header>
+
 
       <section className="relative z-10 flex min-h-screen flex-col justify-between px-5 pb-5 pt-28">
         <div className="grid gap-4 lg:grid-cols-[minmax(280px,0.28fr)_1fr]">
